@@ -1,4 +1,4 @@
-import { getApp, getApps, initializeApp } from 'firebase/app';
+﻿import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 
 function readGlobalConfig() {
@@ -49,10 +49,14 @@ function buildApiUrl(pathname) {
   const baseUrl = readApiBaseUrl();
 
   if (!baseUrl) {
-    throw new Error('Set the Firebase Functions API base URL in public/firebase-config.js.');
+    throw new Error('Set the backend API base URL in public/firebase-config.js.');
   }
 
-  return `${baseUrl.replace(/\/+$/, '')}/${String(pathname).replace(/^\/+/, '')}`;
+  const sanitizedBaseUrl = baseUrl.replace(/\/+$/, '');
+  const normalizedPath = String(pathname).replace(/^\/+/, '');
+  const apiBase = sanitizedBaseUrl.endsWith('/api') ? sanitizedBaseUrl : `${sanitizedBaseUrl}/api`;
+
+  return `${apiBase}/${normalizedPath}`;
 }
 
 function getAppInstance() {
@@ -116,7 +120,7 @@ export async function registerPushToken({ deviceName, serviceWorkerRegistration 
 }
 
 export async function sendEmergencyAlert({ locationId, locationName }) {
-  const response = await fetch(buildApiUrl('/notify'), {
+  const response = await fetch(buildApiUrl('/alert'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

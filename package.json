@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "qr-emergency-help",
   "private": true,
   "type": "commonjs",
@@ -6,9 +6,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:sms": "node scripts/generate-sms-qr.js"
+    "generate:sms": "node scripts/generate-sms-qr.js",
+    "start": "node server.js"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
     "firebase": "^12.18.0",
     "firebase-admin": "^14.3.0",
     "firebase-functions": "^7.3.2",

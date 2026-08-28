@@ -1,9 +1,6 @@
-# QR Emergency Help
+﻿# QR Emergency Help
 
-This repo now contains both tracks:
-
-- Track 1: SMS QR generation
-- Track 2: public help page + Firebase push notifications
+This repo contains the QR emergency help frontend plus a local Node.js backend for push alerts.
 
 ## Track 1
 
@@ -19,20 +16,48 @@ Run it with:
 npm run generate:sms
 ```
 
-## Track 2
+## Push alerts
 
-- Public help page lives at `#/help/:locationId`
-- Responder registration lives at `#/register`
-- Push tokens are stored through the Firebase Functions API
-- Help alerts are broadcast to every registered responder
+- The frontend registers responder browsers with Firebase Cloud Messaging
+- The local backend stores responder tokens in `data/responders.json`
+- Alerts are sent from the backend through Firebase Admin SDK
+
+## Local backend
+
+1. Install dependencies once with `npm install`.
+2. Put your Firebase service account JSON file somewhere local, for example `firebase-service-account.json` in the project root.
+3. Copy `.env.example` to `.env` and fill in:
+   - `FIREBASE_SERVICE_ACCOUNT_PATH`
+   - `PORT`
+   - `ALLOWED_ORIGIN` (use the GitHub Pages origin, not the page path)
+4. Start the backend:
+
+```bash
+npm start
+```
+
+The server listens on `http://localhost:<PORT>` and exposes:
+
+- `POST /api/register`
+- `POST /api/alert`
+- `GET /health`
+
+## Tunnel for field testing
+
+Use `ngrok` to expose the local backend temporarily:
+
+```bash
+ngrok http 3000
+```
+
+Copy the generated HTTPS forwarding URL and use it as the frontend `apiBaseUrl` in `public/firebase-config.js`, ending with `/api`.
 
 ## GitHub Pages setup
 
 - Host the frontend from the `dist/` folder produced by `npm run build`
-- Deploy the backend separately with Firebase Functions
 - Set `public/firebase-config.js` to your Firebase web config
 - Put your Firebase Cloud Messaging VAPID key in `public/firebase-config.js`
-- Set `apiBaseUrl` in `public/firebase-config.js` to your Functions endpoint, for example `https://us-central1-YOUR_PROJECT.cloudfunctions.net/api`
+- Set `apiBaseUrl` in `public/firebase-config.js` to your backend URL, for example `https://YOUR-NGROK-URL/api`
 
 ## What the responder does
 
@@ -46,5 +71,8 @@ npm run generate:sms
 
 - Update recipient numbers, message template, and locations in `data/locations.json`
 - Update Firebase config values in `public/firebase-config.js`
-- Update the backend Functions project ID before deployment
+- Update the backend service account path in `.env`
 - Add or change responder devices by opening `#/register` on each device
+
+
+
