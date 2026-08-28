@@ -1,0 +1,27 @@
+{
+  "project": "QR Emergency Help - Track 1",
+  "smsRecipients": [
+    "+201007697090",
+    "+201007708656"
+  ],
+  "messageTemplate": "Help at {name} ({id})",
+  "output": {
+    "directory": "out/sms",
+    "scale": 8,
+    "margin": 4
+  },
+  "locations": [
+    {
+      "id": "LOC-NTB01",
+      "name": "North Trail Bench"
+    },
+    {
+      "id": "LOC-RVX02",
+      "name": "River Crossing"
+    },
+    {
+      "id": "LOC-MGN03",
+      "name": "Main Gate North"
+    }
+  ]
+}
