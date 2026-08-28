@@ -8,7 +8,7 @@
   appId: "1:683768433398:web:3985795902dbf60c5bbad7"
 };
 
-  global.FIREBASE_VAPID_KEY = '';
+  global.FIREBASE_VAPID_KEY = FIREBASE_VAPID_KEY: "BCQXWIP010sRdKBKT5O68FnPTzPxh8Ustle959JT2BLbKCx41v0yYco11ubPelz-gmSYFGbrfeVjcrTxcKLyx6Q"
 
   global.APP_CONFIG = {
     apiBaseUrl: ''
