@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=./" />
+    <title>QR Emergency Help</title>
+    <script>
+      (function () {
+        var basePath = location.pathname.replace(/\/[^/]*$/, '/');
+        var route = location.pathname.slice(basePath.length).replace(/^\/+/, '');
+        var target = basePath + '#/' + route;
+
+        if (!route) {
+          target = basePath + '#/';
+        }
+
+        location.replace(target);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
