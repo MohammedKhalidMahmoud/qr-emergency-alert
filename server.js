@@ -1,8 +1,12 @@
-﻿const fs = require('fs/promises');
+﻿const crypto = require('crypto');
+const fs = require('fs');
+const fsp = require('fs/promises');
 const path = require('path');
 const dotenv = require('dotenv');
 const express = require('express');
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 
 dotenv.config();
 
@@ -19,9 +23,13 @@ if (!SERVICE_ACCOUNT_PATH) {
   throw new Error('Set FIREBASE_SERVICE_ACCOUNT_PATH in your .env file.');
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(loadServiceAccount(SERVICE_ACCOUNT_PATH))
+const serviceAccount = loadServiceAccount(SERVICE_ACCOUNT_PATH);
+const firebaseApp = initializeApp({
+  credential: cert(serviceAccount)
 });
+const db = getFirestore(firebaseApp);
+const messaging = getMessaging(firebaseApp);
+const responders = db.collection('responders');
 
 const app = express();
 
@@ -51,56 +59,51 @@ app.post('/api/register', async (req, res) => {
     const userAgent = normalizeText(body.userAgent, 240);
     const platform = normalizeText(body.platform, 120);
     const now = new Date().toISOString();
+    const tokenId = hashToken(token);
 
-    const responders = await loadResponders();
-    const existingIndex = responders.findIndex((entry) => entry.token === token);
-    const existing = existingIndex >= 0 ? responders[existingIndex] : null;
-
-    const record = {
-      token,
-      deviceName,
-      userAgent,
-      platform,
-      active: true,
-      topic: RESPONDER_TOPIC,
-      createdAt: existing?.createdAt || now,
-      updatedAt: now,
-      lastRegisteredAt: now,
-      lastError: ''
-    };
-
-    if (existingIndex >= 0) {
-      responders[existingIndex] = {
-        ...existing,
-        ...record
-      };
-    } else {
-      responders.push(record);
-    }
-
-    await saveResponders(responders);
+    await responders.doc(tokenId).set(
+      {
+        token,
+        deviceName,
+        userAgent,
+        platform,
+        active: true,
+        topic: RESPONDER_TOPIC,
+        topicSubscribed: false,
+        createdAt: now,
+        updatedAt: now,
+        lastRegisteredAt: now,
+        lastError: ''
+      },
+      { merge: true }
+    );
 
     let topicSubscribed = true;
     let topicError = '';
 
     try {
-      await admin.messaging().subscribeToTopic([token], RESPONDER_TOPIC);
+      await messaging.subscribeToTopic([token], RESPONDER_TOPIC);
     } catch (error) {
       topicSubscribed = false;
       topicError = error?.message || 'Topic subscription failed.';
     }
 
-    await updateResponderToken(token, {
-      topicSubscribed,
-      lastError: topicError,
-      updatedAt: now
-    });
+    await responders.doc(tokenId).set(
+      {
+        topicSubscribed,
+        lastError: topicError,
+        updatedAt: now
+      },
+      { merge: true }
+    );
+
+    const snapshot = await responders.get();
 
     res.status(200).json({
       ok: true,
       deviceName,
       topicSubscribed,
-      responderCount: responders.length
+      responderCount: snapshot.size
     });
   } catch (error) {
     console.error(error);
@@ -137,20 +140,20 @@ async function handleAlertRequest(req, res) {
       return;
     }
 
-    const locationName = await readLocationName(locationId);
-
-    if (!locationName) {
-      res.status(404).json({ ok: false, error: `Unknown location ID: ${locationId}` });
-      return;
-    }
-
+    const locationName = (await readLocationName(locationId)) || locationId;
     const sentAt = new Date().toISOString();
     const readableTime = new Date(sentAt).toLocaleString('en-US', {
       dateStyle: 'medium',
       timeStyle: 'short'
     });
-    const responders = await loadResponders();
-    const activeResponders = responders.filter((entry) => entry.active !== false && normalizeText(entry.token, 4096));
+    const snapshot = await responders.where('active', '==', true).get();
+    const activeResponders = snapshot.docs
+      .map((document) => ({
+        id: document.id,
+        ref: document.ref,
+        ...document.data()
+      }))
+      .filter((entry) => normalizeText(entry.token, 4096));
 
     if (!activeResponders.length) {
       res.status(409).json({ ok: false, error: 'No responders are registered yet.' });
@@ -171,7 +174,7 @@ async function handleAlertRequest(req, res) {
     };
 
     try {
-      const messageId = await admin.messaging().send({
+      const messageId = await messaging.send({
         topic: RESPONDER_TOPIC,
         ...message
       });
@@ -198,7 +201,7 @@ async function handleAlertRequest(req, res) {
 
     for (const responder of activeResponders) {
       try {
-        await admin.messaging().send({
+        await messaging.send({
           token: responder.token,
           ...message
         });
@@ -221,7 +224,7 @@ async function handleAlertRequest(req, res) {
       }
     }
 
-    await saveResponders(mergeResponders(responders, nextResponders));
+    await saveResponders(mergeResponders(await loadResponders(), nextResponders));
 
     const statusCode = delivered > 0 ? 200 : 500;
 
@@ -270,8 +273,17 @@ function corsMiddleware(req, res, next) {
 
 function loadServiceAccount(filePath) {
   const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
-  const contents = require('fs').readFileSync(resolvedPath, 'utf8');
-  return JSON.parse(contents);
+
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`FIREBASE_SERVICE_ACCOUNT_PATH points to a missing file: ${resolvedPath}`);
+  }
+
+  try {
+    const contents = fs.readFileSync(resolvedPath, 'utf8');
+    return JSON.parse(contents);
+  } catch (error) {
+    throw new Error(`Could not read Firebase service account JSON at ${resolvedPath}: ${error.message}`);
+  }
 }
 
 function readRequestBody(req) {
@@ -284,7 +296,7 @@ function readRequestBody(req) {
 
 async function readLocationName(locationId) {
   try {
-    const raw = await fs.readFile(LOCATIONS_FILE, 'utf8');
+    const raw = await fsp.readFile(LOCATIONS_FILE, 'utf8');
     const parsed = JSON.parse(raw);
     const locations = Array.isArray(parsed.locations) ? parsed.locations : [];
     const match = locations.find((location) => location && location.id === locationId);
@@ -300,7 +312,7 @@ async function readLocationName(locationId) {
 
 async function loadResponders() {
   try {
-    const raw = await fs.readFile(RESPONDERS_FILE, 'utf8');
+    const raw = await fsp.readFile(RESPONDERS_FILE, 'utf8');
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       return dedupeResponders(parsed);
@@ -320,45 +332,39 @@ async function loadResponders() {
   }
 }
 
-async function saveResponders(responders) {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const deduped = dedupeResponders(responders);
+async function saveResponders(respondersList) {
+  await fsp.mkdir(DATA_DIR, { recursive: true });
+  const deduped = dedupeResponders(respondersList);
   const tempFile = `${RESPONDERS_FILE}.tmp`;
-  await fs.writeFile(tempFile, `${JSON.stringify(deduped, null, 2)}\n`, 'utf8');
-  await fs.rename(tempFile, RESPONDERS_FILE);
-}
-
-async function updateResponderToken(token, patch) {
-  const responders = await loadResponders();
-  let changed = false;
-  const nextResponders = responders.map((responder) => {
-    if (responder.token !== token) {
-      return responder;
-    }
-
-    changed = true;
-    return {
-      ...responder,
-      ...patch
-    };
-  });
-
-  if (changed) {
-    await saveResponders(nextResponders);
-  }
+  await fsp.writeFile(tempFile, `${JSON.stringify(deduped, null, 2)}\n`, 'utf8');
+  await fsp.rename(tempFile, RESPONDERS_FILE);
 }
 
 function mergeResponders(existingResponders, updatedResponders) {
   const updatesByToken = new Map(updatedResponders.map((responder) => [responder.token, responder]));
+  const merged = [];
+  const seen = new Set();
 
-  return existingResponders.map((responder) => updatesByToken.get(responder.token) || responder);
+  for (const responder of existingResponders) {
+    const nextResponder = updatesByToken.get(responder.token) || responder;
+    merged.push(nextResponder);
+    seen.add(nextResponder.token);
+  }
+
+  for (const responder of updatedResponders) {
+    if (!seen.has(responder.token)) {
+      merged.push(responder);
+    }
+  }
+
+  return merged;
 }
 
-function dedupeResponders(responders) {
+function dedupeResponders(respondersList) {
   const seen = new Set();
   const nextResponders = [];
 
-  for (const responder of responders) {
+  for (const responder of respondersList) {
     const token = normalizeText(responder?.token, 4096);
 
     if (!token || seen.has(token)) {
@@ -393,6 +399,10 @@ function normalizeText(value, maxLength) {
   return value.trim().slice(0, maxLength);
 }
 
+function hashToken(token) {
+  return require('crypto').createHash('sha256').update(token).digest('hex');
+}
+
 function isTokenPermanentFailure(error) {
   const message = String(error?.message || '').toLowerCase();
   const code = String(error?.code || '').toLowerCase();
@@ -404,6 +414,4 @@ function isTokenPermanentFailure(error) {
     code.includes('invalid-registration-token')
   );
 }
-
-
 
