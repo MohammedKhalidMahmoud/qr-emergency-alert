@@ -26,20 +26,9 @@ npm run generate:sms
 - Push tokens are stored through the Firebase Functions API
 - Help alerts are broadcast to every registered responder
 
-Run the frontend through Vite because the app imports CSS and JSON from JavaScript modules:
-
-```bash
-npm install
-npm run dev
-```
-
-Then open the local URL printed by Vite, usually `http://localhost:5173/`. Do not use VS Code Live Server for `index.html`; it cannot transform the app's module imports and will report CSS and JSON MIME-type errors.
-
 ## GitHub Pages setup
 
-- Push this repository to GitHub and enable **Settings > Pages > GitHub Actions** as the source.
-- The included workflow builds the frontend and publishes the `dist/` folder automatically on pushes to `main`.
-- Your site URL will be `https://YOUR_GITHUB_USERNAME.github.io/YOUR_REPOSITORY/`.
+- Host the frontend from the `dist/` folder produced by `npm run build`
 - Deploy the backend separately with Firebase Functions
 - Set `public/firebase-config.js` to your Firebase web config
 - Put your Firebase Cloud Messaging VAPID key in `public/firebase-config.js`

@@ -1,15 +1,15 @@
 {
   "name": "QR Emergency Help",
   "short_name": "Emergency Help",
-  "start_url": "./#/register",
-  "scope": "./",
+  "start_url": "/register",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "description": "Public QR help page and responder notification registration.",
   "icons": [
     {
-      "src": "./icon.svg",
+      "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
