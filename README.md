@@ -50,14 +50,14 @@ Use `ngrok` to expose the local backend temporarily:
 ngrok http 3000
 ```
 
-Copy the generated HTTPS forwarding URL and use it as the frontend `apiBaseUrl` in `public/firebase-config.js`, ending with `/api`.
+Copy the generated HTTPS forwarding URL and use it as `API_BASE_URL` in `public/firebase-config.js`, ending with `/api`.
 
 ## GitHub Pages setup
 
 - Host the frontend from the `dist/` folder produced by `npm run build`
 - Set `public/firebase-config.js` to your Firebase web config
 - Put your Firebase Cloud Messaging VAPID key in `public/firebase-config.js`
-- Set `apiBaseUrl` in `public/firebase-config.js` to your backend URL, for example `https://YOUR-NGROK-URL/api`
+- Set `API_BASE_URL` in `public/firebase-config.js` to your backend URL, for example `https://YOUR-NGROK-URL/api`
 
 ## What the responder does
 

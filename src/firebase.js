@@ -2,7 +2,7 @@
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 
 function readGlobalConfig() {
-  return globalThis.FIREBASE_CONFIG || globalThis.firebaseConfig || {};
+  return globalThis.FIREBASE_CONFIG || {};
 }
 
 function readVapidKey() {
@@ -10,15 +10,13 @@ function readVapidKey() {
 }
 
 function readApiBaseUrl() {
-  const appConfig = globalThis.APP_CONFIG || globalThis.appConfig || {};
-  return String(appConfig.apiBaseUrl || globalThis.API_BASE_URL || '').trim();
+  return String(globalThis.API_BASE_URL || '').trim();
 }
 
 export function hasFirebaseConfig() {
   const config = readGlobalConfig();
   return Boolean(
     config.apiKey &&
-      config.authDomain &&
       config.projectId &&
       config.messagingSenderId &&
       config.appId &&
@@ -31,12 +29,11 @@ export function getConfigWarnings() {
   const missing = [];
 
   if (!config.apiKey) missing.push('apiKey');
-  if (!config.authDomain) missing.push('authDomain');
   if (!config.projectId) missing.push('projectId');
   if (!config.messagingSenderId) missing.push('messagingSenderId');
   if (!config.appId) missing.push('appId');
   if (!readVapidKey()) missing.push('FIREBASE_VAPID_KEY');
-  if (!readApiBaseUrl()) missing.push('apiBaseUrl');
+  if (!readApiBaseUrl()) missing.push('API_BASE_URL');
 
   return missing;
 }

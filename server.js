@@ -11,7 +11,10 @@ const { getMessaging } = require('firebase-admin/messaging');
 dotenv.config();
 
 const PORT = Number(process.env.PORT || 3000);
-const ALLOWED_ORIGIN = String(process.env.ALLOWED_ORIGIN || '').trim();
+const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 const SERVICE_ACCOUNT_PATH = String(process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '').trim();
 const RESPONDER_TOPIC = 'responders';
 const ROOT_DIR = __dirname;
@@ -251,7 +254,7 @@ function corsMiddleware(req, res, next) {
   const origin = req.headers.origin;
 
   if (origin) {
-    if (!ALLOWED_ORIGIN || origin !== ALLOWED_ORIGIN) {
+    if (!ALLOWED_ORIGINS.includes(origin.replace(/\/+$/, ''))) {
       res.status(403).json({ ok: false, error: 'Origin not allowed.' });
       return;
     }

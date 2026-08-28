@@ -2,7 +2,7 @@ importScripts('./firebase-config.js');
 importScripts('https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging-compat.js');
 
-firebase.initializeApp(self.FIREBASE_CONFIG || self.firebaseConfig || {});
+firebase.initializeApp(self.FIREBASE_CONFIG || {});
 
 const messaging = firebase.messaging();
 
