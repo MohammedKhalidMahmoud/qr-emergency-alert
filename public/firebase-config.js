@@ -7,5 +7,5 @@
   };
 
   global.FIREBASE_VAPID_KEY = "BCQXWIP010sRdKBKT5O68FnPTzPxh8Ustle959JT2BLbKCx41v0yYco11ubPelz-gmSYFGbrfeVjcrTxcKLyx6Q";
-  global.API_BASE_URL = 'http://localhost:3000/api';
+  global.API_BASE_URL = 'https://ecology-balance-maverick.ngrok-free.dev';
 })(typeof self !== 'undefined' ? self : window);

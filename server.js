@@ -4,6 +4,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const dotenv = require('dotenv');
 const express = require('express');
+const ngrok = require('@ngrok/ngrok');
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -126,9 +127,31 @@ app.use((req, res) => {
   res.status(404).json({ ok: false, error: 'Not found' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`QR emergency alert backend listening on http://localhost:${PORT}`);
+  await startNgrokForward();
 });
+
+async function startNgrokForward() {
+  const domain = process.env.NGROK_DOMAIN?.trim();
+
+  if (!process.env.NGROK_AUTHTOKEN) {
+    console.log('NGROK_AUTHTOKEN not set. Skipping ngrok tunnel.');
+    return;
+  }
+
+  try {
+    const forwarder = await ngrok.forward({
+      addr: `localhost:${PORT}`,
+      authtoken_from_env: true,
+      ...(domain ? { domain } : {})
+    });
+
+    console.log(`Ngrok forwarding available at: ${forwarder.url()}`);
+  } catch (error) {
+    console.warn('Ngrok tunnel failed to start:', error?.message || error);
+  }
+}
 
 async function handleAlertRequest(req, res) {
   try {
